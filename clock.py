@@ -23,7 +23,6 @@ class App(QWidget):
         self.state = 0
         self.prev_state = 0
         self.states = states
-        # self.state.append({'name': 'Timeout', 'duration': 60})
 
         self.setWindowTitle(self.title)
         self.setAutoFillBackground(True)
@@ -133,6 +132,17 @@ class App(QWidget):
 
         self.update_state_appearance()
 
+    def startTimeout(self):
+        print('Timeout')
+        self.m.startTimeout()
+        self.label.setText(self.states[self.state]['name']+ '<br />(Timeout)')
+        self.update()
+
+    def stopTimeout(self):
+        print('End of timeout')
+        self.label.setText(self.states[self.state]['name'])
+        self.update()
+
     def update_state_appearance(self):
             # Change the label for the state name
             self.label.setText(self.states[self.state]['name'])
@@ -140,8 +150,11 @@ class App(QWidget):
             self.update()
 
     def stepEvent(self):
-        i = self.state
-        self.selectState(i+1)
+        if self.m.timeout:
+            self.m.stopTimeout()
+        else:
+            i = self.state
+            self.selectState(i+1)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_N:
@@ -163,6 +176,7 @@ class AnalogClock(QWidget):
         self.timer.timeout.connect(self.update)
         self.timer.start(10)
         self.startPause = datetime.datetime.now()
+        self.timeout = False
 
         self.elapsedTimeClock = datetime.timedelta()
         self.prev_elapsed = datetime.timedelta()
@@ -181,8 +195,11 @@ class AnalogClock(QWidget):
     def paintEvent(self, event):
         side = int(min(self.width(), self.height()) * 0.8 / 2)
         if not(self.paused):
-            self.elapsedTimeClock = (datetime.datetime.now() - self.datestart)
-            self.prev_elapsed = datetime.datetime.now() - self.prev_datestart
+            if self.timeout:
+                self.t_elapsedC = (datetime.datetime.now() - self.timeout_start)
+            else:
+                self.elapsedTimeClock = (datetime.datetime.now() - self.datestart)
+                self.prev_elapsed = datetime.datetime.now() - self.prev_datestart
         self.elapsedTime = self.elapsedTimeClock.total_seconds()
 
         # Create and start a QPainter
@@ -218,6 +235,19 @@ class AnalogClock(QWidget):
             self.painter.setBrush(QColor(200, 0, 0))
             self.painter.drawPie(-side, -side, 2 * side,
                                  2 * side, 90 * 16, 360 * 16)
+        # timeout
+        if self.timeout:
+            self.painter.setBrush(QColor(235, 120, 0))
+            self.t_elapsed = self.t_elapsedC.total_seconds()
+            t_angle = - 2 * math.pi * self.t_elapsed / self.timeout_duration
+            self.painter.drawPie(-side, -side, 2 * side, 2 * side, ((currentAngle) * (360 / (2 * math.pi))+90) * 16,
+                                 (currentAngle + t_angle) * (360 / (2 * math.pi)) * 16)
+            self.parent.countDown.setText(
+                'Time remaining : ' + printMinuteSecondDelta(datetime.timedelta(seconds=self.duration) - self.elapsedTimeClock)
+                + ' (' + printMinuteSecondDelta(datetime.timedelta(seconds=self.timeout_duration) - self.t_elapsedC) + ')')
+            delta = datetime.timedelta(seconds=self.timeout_duration) - self.t_elapsedC
+            if delta.total_seconds() < 0:
+                self.stopTimeout()
         self.painter.setPen(QColor(0, 0, 0))
         self.painter.setBrush(Qt.NoBrush)
         self.painter.drawLine(QPoint(0, 0), QPoint(
@@ -263,6 +293,19 @@ class AnalogClock(QWidget):
         if self.paused:
             self.startPause = self.prev_pause
 
+    def startTimeout(self):
+        self.timeout = True
+        self.t_elapsedC = datetime.timedelta()
+        self.timeout_duration = 60
+        self.timeout_start = datetime.datetime.now()
+
+    def stopTimeout(self):
+        self.timeout = False
+        delta = (datetime.datetime.now() - self.timeout_start)
+        self.datestart += delta
+        self.prev_datestart += delta
+        self.parent.stopTimeout()
+
     def addMinute(self):
         self.duration += 60
 
@@ -282,12 +325,15 @@ class ClockControls(QDialog):
         self.pauseButton.setText('Start')
         self.moreTime = QPushButton()
         self.moreTime.setText('Add 1 minute')
+        self.timeout = QPushButton()
+        self.timeout.setText('Timeout')
         self.cancelMistake = QPushButton()
         self.cancelMistake.setText('Cancel mistake')
         self.vLayout = QVBoxLayout()
         self.vLayout.addWidget(self.list)
         self.vLayout.addWidget(self.nextButton)
         self.vLayout.addWidget(self.pauseButton)
+        self.vLayout.addWidget(self.timeout)
         self.vLayout.addWidget(self.moreTime)
         self.vLayout.addWidget(self.cancelMistake)
         self.setLayout(self.vLayout)
@@ -296,6 +342,7 @@ class ClockControls(QDialog):
         self.pauseButton.clicked.connect(self.switchPause)
         self.nextButton.clicked.connect(self.parent.stepEvent)
         self.moreTime.clicked.connect(self.parent.m.addMinute)
+        self.timeout.clicked.connect(self.parent.startTimeout)
         self.cancelMistake.clicked.connect(self.parent.returnToLastState)
 
     def generateList(self, states):
