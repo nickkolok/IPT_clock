@@ -306,8 +306,8 @@ class AnalogClock(QWidget):
         self.prev_datestart += delta
         self.parent.stopTimeout()
 
-    def addMinute(self):
-        self.duration += 60
+    def addTime(self, toadd):
+        self.duration += toadd
 
 
 class ClockControls(QDialog):
@@ -318,38 +318,107 @@ class ClockControls(QDialog):
         self.setWindowTitle(self.title)
         self.parent = parent
 
+
+        # list of states
         self.list = QListWidget()
+        self.list.currentItemChanged.connect(self.changeState)
+
+        # step to next state button
         self.nextButton = QPushButton()
         self.nextButton.setText('Next')
+        self.nextButton.clicked.connect(self.parent.stepEvent)
+
+
+        # pause and start button
         self.pauseButton = QPushButton()
         self.pauseButton.setText('Start')
-        self.moreTime = QPushButton()
-        self.moreTime.setText('Add 1 minute')
+        self.pauseButton.clicked.connect(self.switchPause)
+
+        # timeout button
         self.timeout = QPushButton()
         self.timeout.setText('Timeout')
+        self.timeout.clicked.connect(self.parent.startTimeout)
+
+        # button to cancel mistake
         self.cancelMistake = QPushButton()
         self.cancelMistake.setText('Cancel mistake')
+        self.cancelMistake.clicked.connect(self.parent.returnToLastState)
+
+        # time modifiers
+        self.add1m = QPushButton()
+        self.add1m.setText('+ 1 minute')
+        self.add1m.clicked.connect(self.addMinute)
+
+        self.rem1m = QPushButton()
+        self.rem1m.setText('- 1 minute')
+        self.rem1m.clicked.connect(self.removeMinute)
+
+        self.add5s = QPushButton()
+        self.add5s.setText('+ 5 seconds')
+        self.add5s.clicked.connect(self.add5sec)
+
+        self.rem5s = QPushButton()
+        self.rem5s.setText('- 5 seconds')
+        self.rem5s.clicked.connect(self.remove5sec)
+
+        self.manualTimeS = QSpinBox()
+        self.manualTimeS.setValue(10)
+        self.manualTimeS.setMaximum(59)
+        self.manualTimeS.setSuffix('s')
+        self.manualTimeS.setSingleStep(5)
+
+        self.manualTimeM = QSpinBox()
+        self.manualTimeM.setValue(0)
+        self.manualTimeM.setMaximum(60)
+        self.manualTimeM.setSuffix('m')
+
+        self.moreTime = QPushButton()
+        self.moreTime.setText('+')
+        self.moreTime.clicked.connect(self.addTime)
+
+        self.remTime = QPushButton()
+        self.remTime.setText('-')
+        self.remTime.clicked.connect(self.removeTime)
+
+
+        # layout
         self.vLayout = QVBoxLayout()
         self.vLayout.addWidget(self.list)
         self.vLayout.addWidget(self.nextButton)
         self.vLayout.addWidget(self.pauseButton)
         self.vLayout.addWidget(self.timeout)
-        self.vLayout.addWidget(self.moreTime)
-        self.vLayout.addWidget(self.cancelMistake)
-        self.setLayout(self.vLayout)
 
-        self.list.currentItemChanged.connect(self.changeState)
-        self.pauseButton.clicked.connect(self.switchPause)
-        self.nextButton.clicked.connect(self.parent.stepEvent)
-        self.moreTime.clicked.connect(self.parent.m.addMinute)
-        self.timeout.clicked.connect(self.parent.startTimeout)
-        self.cancelMistake.clicked.connect(self.parent.returnToLastState)
+        self.holder = QFrame()
+        self.holder.setFrameShadow(QFrame.Sunken)
+        self.holder.setFrameShape(QFrame.Panel)
+        self.holder.setLineWidth(2)
+        self.grid = QGridLayout()
+        self.grid.addWidget(self.add1m, 1, 1)
+        self.grid.addWidget(self.rem1m, 1, 2)
+        self.grid.addWidget(self.add5s, 2, 1)
+        self.grid.addWidget(self.rem5s, 2, 2)
+        self.hLayout1 = QHBoxLayout()
+        self.hLayout1.addWidget(self.manualTimeM)
+        self.hLayout1.addWidget(self.manualTimeS)
+        self.grid.addLayout(self.hLayout1,3,1)
+        self.hLayout2 = QHBoxLayout()
+        self.hLayout2.addWidget(self.moreTime)
+        self.hLayout2.addWidget(self.remTime)
+        self.grid.addLayout(self.hLayout2,3,2)
+
+        self.holder.setLayout(self.grid)
+
+        self.vLayout.addWidget(self.holder)
+        self.vLayout.addWidget(self.cancelMistake)
+
+
+        self.setLayout(self.vLayout)
 
     def generateList(self, states):
         self.statesList = []
         for state in states:
-            item = QListWidgetItem('{} (duration : {} s)'.format(
-                state['name'].replace('<br/>',''), state['duration']))
+            item = QListWidgetItem('{} ({} s)'.format(
+                state['name'].replace('<br />','').replace('<br/>',''), state['duration']))
             self.statesList.append(item)
             self.list.addItem(item)
 
@@ -364,6 +433,25 @@ class ClockControls(QDialog):
         new_state = self.statesList.index(curr)
         self.parent.setEvent(new_state)
 
+    def addMinute(self):
+        self.parent.m.addTime(60)
+
+    def removeMinute(self):
+        self.parent.m.addTime(-60)
+
+    def add5sec(self):
+        self.parent.m.addTime(5)
+
+    def remove5sec(self):
+        self.parent.m.addTime(-5)
+
+    def addTime(self):
+        dt = self.manualTimeS.value() + self.manualTimeM.value()*60
+        self.parent.m.addTime(dt)
+
+    def removeTime(self):
+        dt = self.manualTimeS.value() + self.manualTimeM.value()*60
+        self.parent.m.addTime(-dt)
 
 if __name__ == '__main__':
     if hasattr(sys, "_MEIPASS"):  # For PyInstaller
