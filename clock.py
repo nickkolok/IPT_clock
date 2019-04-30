@@ -13,7 +13,8 @@ def printMinuteSecondDelta(delta):
 
 labelFontCoeff = 15
 countDownFontCoeff = 20
-logoSizeCoeff = 5
+logoSizeCoeffMin = 0.17
+logoSizeCoeffMax = 0.35
 
 
 class App(QWidget):
@@ -53,31 +54,22 @@ class App(QWidget):
 
         # Left layout
         self.leftLayout = QVBoxLayout()
-        self.logoSFP = QLabel()
-        self.logoFPT = QLabel()
+        self.logoIPT = QLabel()
 
         if hasattr(sys, "_MEIPASS"):  # For PyInstaller
-            SFPFile = os.path.join(sys._MEIPASS, 'img1.png')
-            FPTFile = os.path.join(sys._MEIPASS, 'img2.png')
+            IPTFile = os.path.join(sys._MEIPASS, 'img1.png')
         else:
-            SFPFile = 'img1.png'
-            FPTFile = 'img2.png'
+            IPTFile = 'img1.png'
 
-        self.pixmapSFP = QPixmap(SFPFile)
-        self.logoSFP.setPixmap(self.pixmapSFP)
-        self.logoSFP.setMinimumSize(1, 1)
-        self.logoSFP.installEventFilter(self)
+        self.pixmapIPT = QPixmap(IPTFile)
+        self.logoIPT.setPixmap(self.pixmapIPT)
+        self.logoIPT.setMinimumSize(1, 1)
+        self.logoIPT.installEventFilter(self)
 
-        self.pixmapFPT = QPixmap(FPTFile)
-        self.logoFPT.setPixmap(self.pixmapSFP)
-        self.logoFPT.setMinimumSize(1, 1)
-        self.logoFPT.installEventFilter(self)
+        self.logoIPT.setMinimumWidth(self.frameGeometry().width()*logoSizeCoeffMin)
+        self.logoIPT.setMaximumWidth(self.frameGeometry().width()*logoSizeCoeffMax)
 
-        self.logoSFP.setMinimumWidth(self.frameGeometry().width()/logoSizeCoeff)
-        self.logoFPT.setMinimumWidth(self.frameGeometry().width()/logoSizeCoeff)
-
-        self.leftLayout.addWidget(self.logoSFP)
-        self.leftLayout.addWidget(self.logoFPT)
+        self.leftLayout.addWidget(self.logoIPT)
 
         # Complete layout
         self.fullLayout = QHBoxLayout()
@@ -92,15 +84,10 @@ class App(QWidget):
         self.selectState(0)
 
     def eventFilter(self, source, event):
-        if (source is self.logoSFP and event.type() == QEvent.Resize):
+        if (source is self.logoIPT and event.type() == QEvent.Resize):
             # re-scale the pixmap when the label resizes
-            self.logoSFP.setPixmap(self.pixmapSFP.scaled(
-                self.logoSFP.size(), Qt.KeepAspectRatio,
-                Qt.SmoothTransformation))
-        if (source is self.logoFPT and event.type() == QEvent.Resize):
-            # re-scale the pixmap when the label resizes
-            self.logoFPT.setPixmap(self.pixmapFPT.scaled(
-                self.logoFPT.size(), Qt.KeepAspectRatio,
+            self.logoIPT.setPixmap(self.pixmapIPT.scaled(
+                self.logoIPT.size(), Qt.KeepAspectRatio,
                 Qt.SmoothTransformation))
         return super(QWidget, self).eventFilter(source, event)
 
@@ -164,8 +151,8 @@ class App(QWidget):
         self.label.setFont(QFont('Arial', self.frameGeometry().height()/labelFontCoeff))
         self.countDown.setFont(QFont('Arial', self.frameGeometry().height()/countDownFontCoeff))
 
-        #self.logoSFP.setMinimumWidth(self.frameGeometry().width()/logoSizeCoeff)
-        self.logoFPT.setMinimumWidth(self.frameGeometry().width()/logoSizeCoeff)
+        self.logoIPT.setMinimumWidth(self.frameGeometry().width()*logoSizeCoeffMin)
+        self.logoIPT.setMaximumWidth(self.frameGeometry().width()*logoSizeCoeffMax)
 
 class AnalogClock(QWidget):
 
